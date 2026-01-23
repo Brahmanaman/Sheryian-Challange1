@@ -1,130 +1,104 @@
 let canvas = document.getElementById("canvas");
-let selected = null;
-let elements = [];
 let idCounter = 0;
+let elements = [];
+let selectedElement = null;
 
-//create rectangle box
 document.getElementById("add-rect").onclick = () => createElement("rect");
-
-//create a text box
 document.getElementById("add-text").onclick = () => createElement("text");
 
-//create element
 function createElement(type) {
-    let el = document.createElement("div");
-    el.classList.add("element");
-    el.dataset.id = ++idCounter;
-    el.dataset.type = type;
+    let elem = document.createElement("div");
+    elem.classList.add("element");
+    elem.id = ++idCounter;
+    elem.dataset.type = type;
+    elem.style.height = "100px";
+    elem.style.width = "200px";
+    elem.style.backgroundColor = type == "rect" ? "#0b003efe" : "transparent";
+    elem.style.border = type == "text" ? "1px solid black" : "none";
+    if (type == "text") {
+        elem.textContent = "update the text from text box";
+    }
+    canvas.appendChild(elem);
+    elements.push(elem);
+    addEventListeners(elem);
 
-    el.style.left = "50px";
-    el.style.top = "50px";
-    el.style.width = "120px";
-    el.style.height = "80px";
-    el.style.background = type === "rect" ? "#0b003efe" : "transparent";
-    el.style.border = type === "rect" ? "" : "1px solid black";
-    if (type === "text") el.innerText = "update the text";
-
-    //append child into canvas
-    canvas.appendChild(el);
-
-    //push the element into elements array
-    elements.push(el);
-
-    addEventListeners(el);
-    refreshLayers();
 }
 
-canvas.addEventListener("mousedown", (e) => {
-    if (e.target.classList.contains("element")) {
-        selectElement(e.target);
-    } else {
-        clearSelection();
-    }
-});
-
-
-
-//drag element
-function addEventListeners(el) {
-    el.onmousedown = dragStart;
+function addEventListeners(elem) {
+    elem.onmousedown = startDrag;
 }
 
 let offsetX, offsetY;
+function startDrag(e) {
+    e.stopPropagation();
+    selectTheElement(this)
 
-function dragStart(e) {
-    if (e.target.classList.contains("resize-handle")) return;
-    selectElement(this);
+    offsetX = e.offsetX; //getting mouse coordiant of x inside the selected element
+    offsetY = e.offsetY //getting mouse coordinate of y inside the selected element
 
-    offsetX = e.offsetX;
-    offsetY = e.offsetY;
-
-    document.onmousemove = dragMove;
+    document.onmousemove = dragStart;
     document.onmouseup = dragStop;
 }
 
-
-// select the element
-function selectElement(el) {
-    console.log("selection before clear", selected)
-    if (selected) clearSelection();
-
-    selected = el;
-    console.log("selection after clear", selected)
+function selectTheElement(el) {
+    if (selectedElement) clearSelection();
+    selectedElement = el;
     el.classList.add("selected");
-    addResizeHandles(el);
-    loadProperties(el);
+
+    //resize handler
+    addResizeHandler(el);
 }
 
-function clearSelection() {
-    if (!selected) return;
-    selected.classList.remove("selected");
-    removeResizeHandles();
-    selected = null;
-    console.log("clear selection running", selected)
-}
+function dragStart(e) {
+    if (!selectedElement) return;
+    let canvasRect = canvas.getBoundingClientRect();
 
+    // canvasRect.left and canvasRect.top ko isliye subtract kra hai taki element canvas k respective m move hokr calculation ho vrna screen k respective m calculation hoti
 
-function dragMove(e) {
-    if (!selected) return;
+    let newX = e.clientX - canvasRect.left - offsetX;
+    let newY = e.clientY - canvasRect.top - offsetY;
 
-    selected.style.left = e.pageX - offsetX + "px";
-    selected.style.top = e.pageY - offsetY + "px";
+    // selected element canvas k andr hi rhe
+    // Math.max(0, newX); ye left side se bhar jane se rokta hai hmare element ko
+    //Math.min(newX, canvasRect.width - selectedElement.offsetWidth) ye hmare right side se bhar jane se rokta hai.
+    newX = Math.max(0, Math.min(newX, canvasRect.width - selectedElement.offsetWidth));
+    newY = Math.max(0, Math.min(newY, canvasRect.height - selectedElement.offsetHeight));
+
+    selectedElement.style.top = newY + "px";
+    selectedElement.style.left = newX + "px";
 }
 
 function dragStop() {
     document.onmousemove = null;
 }
 
-//resize handler
-function addResizeHandles(el) {
-    ["tl", "tr", "bl", "br"].forEach(pos => {
-        let h = document.createElement("div");
-        h.classList.add("resize-handle", pos);
-        h.dataset.position = pos;
-        h.onmousedown = resizeStart;
-        el.appendChild(h);
-    });
+function addResizeHandler(el) {
+    ["tl", "tr", "br", "bl"].map((cord) => {
+        let div = document.createElement("div");
+        div.classList.add("resize-handle", cord);
+        div.onmousedown = resizeElement;
+        el.appendChild(div);
+    })
 }
 
-function removeResizeHandles() {
-    document.querySelectorAll(".resize-handle").forEach(h => h.remove());
-}
-
-let resizing = false;
 let activeHandle = null;
-
-function resizeStart(e) {
+let resizing = false;
+function resizeElement(e) {
     e.stopPropagation();
     activeHandle = this;
     resizing = true;
-    selected = this.parentElement;
     activeHandle.startX = e.clientX;
     activeHandle.startY = e.clientY;
-    activeHandle.startWidth = parseInt(selected.style.width);
-    activeHandle.startHeight = parseInt(selected.style.height);
-    console.log("selected in resize start ", selected);
+    activeHandle.startWidth = parseInt(selectedElement.style.width);
+    activeHandle.startHeight = parseInt(selectedElement.style.height);
     document.onmousemove = resizeMove;
     document.onmouseup = resizeStop;
+}
+
+function removeResizeHandler() {
+    document.querySelectorAll(".resize-handle").forEach((handler) => {
+        handler.remove();
+    });
 }
 
 function resizeMove(e) {
@@ -132,8 +106,36 @@ function resizeMove(e) {
     let dx = e.clientX - activeHandle.startX;
     let dy = e.clientY - activeHandle.startY;
 
-    selected.style.width = activeHandle.startWidth + dx + "px";
-    selected.style.height = activeHandle.startHeight + dy + "px";
+    // Get element's current position
+    let elemRect = selectedElement.getBoundingClientRect();
+    let canvasRect = canvas.getBoundingClientRect();
+
+    let elementLeft = elemRect.left - canvasRect.left;
+    let elementTop = elemRect.top - canvasRect.top;
+    let elementRight = elementLeft + activeHandle.startWidth;
+    let elementBottom = elementTop + activeHandle.startHeight;
+
+    let newWidth = activeHandle.startWidth;
+    let newLeft = elementLeft;
+
+    // Calculate new width/height
+    let newWidth = activeHandle.startWidth + dx;
+    let newHeight = activeHandle.startHeight + dy;
+
+    // Maximum allowed width (element should not go outside canvas)
+    let maxWidth = canvasRect.width - (elemRect.left - canvasRect.left);
+    let maxHeight = canvasRect.height - (elemRect.top - canvasRect.top);
+
+    // Apply limits
+    newWidth = Math.min(newWidth, maxWidth);
+    newHeight = Math.min(newHeight, maxHeight);
+
+    // Minimum size to avoid negative sizes
+    newWidth = Math.max(newWidth, 0);
+    newHeight = Math.max(newHeight, 0);
+
+    selectedElement.style.width = newWidth + "px";
+    selectedElement.style.height = newHeight + "px";
 }
 
 function resizeStop() {
@@ -141,163 +143,16 @@ function resizeStop() {
     document.onmousemove = null;
 }
 
-/* ---------------------------
-   PROPERTIES PANEL
---------------------------- */
-let propW = document.getElementById("prop-width");
-let propH = document.getElementById("prop-height");
-let propC = document.getElementById("prop-color");
-let propT = document.getElementById("prop-text");
-let propR = document.getElementById("prop-rotate");
+canvas.addEventListener("mousedown", function () {
+    clearSelection();
+})
 
-function loadProperties(el) {
-    propW.value = parseInt(el.style.width);
-    propH.value = parseInt(el.style.height);
-    propC.value = el.style.backgroundColor || "#000000";
-    propT.value = el.innerText;
-    propR.value = 0;
-}
-
-propW.oninput = () => selected.style.width = propW.value + "px";
-propH.oninput = () => selected.style.height = propH.value + "px";
-propC.oninput = () => selected.style.background = propC.value;
-propT.oninput = () => selected.innerText = propT.value;
-propR.oninput = () => selected.style.transform = `rotate(${propR.value}deg)`;
-
-/* ---------------------------
-   LAYERS PANEL
---------------------------- */
-function refreshLayers() {
-    let list = document.getElementById("layer-list");
-    list.innerHTML = "";
-
-    elements.forEach(el => {
-        let li = document.createElement("li");
-        li.innerText = "Element " + el.dataset.id;
-        li.onclick = () => selectElement(el);
-        list.appendChild(li);
-    });
-}
-
-/* ---------------------------
- DELETE & ARROW KEYS
---------------------------- */
-document.addEventListener("keydown", (e) => {
-    if (!selected) return;
-
-    if (e.key === "Delete") {
-        selected.remove();
-        elements = elements.filter(x => x !== selected);
-        selected = null;
-        refreshLayers();
-    }
-
-    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
-        let top = parseInt(selected.style.top);
-        let left = parseInt(selected.style.left);
-
-        if (e.key === "ArrowUp") selected.style.top = top - 5 + "px";
-        if (e.key === "ArrowDown") selected.style.top = top + 5 + "px";
-        if (e.key === "ArrowLeft") selected.style.left = left - 5 + "px";
-        if (e.key === "ArrowRight") selected.style.left = left + 5 + "px";
-    }
-});
-
-/* ---------------------------
- SAVE & LOAD
---------------------------- */
-document.getElementById("save").onclick = () => {
-    let data = elements.map(el => ({
-        id: el.dataset.id,
-        type: el.dataset.type,
-        x: el.style.left,
-        y: el.style.top,
-        width: el.style.width,
-        height: el.style.height,
-        bg: el.style.background,
-        text: el.innerText,
-        rotate: el.style.transform
-    }));
-
-    localStorage.setItem("design", JSON.stringify(data));
-    alert("Saved!");
-};
-
-document.getElementById("load").onclick = () => {
-    let data = JSON.parse(localStorage.getItem("design"));
-    if (!data) return alert("No saved design");
-
-    canvas.innerHTML = "";
-    elements = [];
-
-    data.forEach(d => {
-        let el = document.createElement("div");
-        el.classList.add("element");
-        el.dataset.id = d.id;
-        el.dataset.type = d.type;
-
-        el.style.left = d.x;
-        el.style.top = d.y;
-        el.style.width = d.width;
-        el.style.height = d.height;
-        el.style.background = d.bg;
-        el.style.transform = d.rotate;
-        el.innerText = d.text;
-
-        canvas.appendChild(el);
-        elements.push(el);
-        addEventListeners(el);
+function clearSelection() {
+    selectedElement = null;
+    elements.map((elem) => {
+        elem.classList.remove("selected");
     });
 
-    refreshLayers();
-};
-
-/* ---------------------------
- EXPORT JSON
---------------------------- */
-document.getElementById("export-json").onclick = () => {
-    let data = JSON.stringify(elements.map(el => ({
-        id: el.dataset.id,
-        type: el.dataset.type,
-        x: el.style.left,
-        y: el.style.top,
-        width: el.style.width,
-        height: el.style.height,
-        bg: el.style.background,
-        text: el.innerText,
-        rotate: el.style.transform
-    })), null, 2);
-
-    download("design.json", data);
-};
-
-/* ---------------------------
- EXPORT HTML
---------------------------- */
-document.getElementById("export-html").onclick = () => {
-    let html = `<div style='position:relative;width:800px;height:500px;'>\n`;
-
-    elements.forEach(el => {
-        html += `<div style="
-            position:absolute;
-            left:${el.style.left};
-            top:${el.style.top};
-            width:${el.style.width};
-            height:${el.style.height};
-            background:${el.style.background};
-            transform:${el.style.transform};
-        ">${el.innerText}</div>\n`;
-    });
-
-    html += "</div>";
-
-    download("design.html", html);
-};
-
-/* DOWNLOAD HELPER */
-function download(filename, content) {
-    let a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([content]));
-    a.download = filename;
-    a.click();
+    removeResizeHandler();
 }
+
