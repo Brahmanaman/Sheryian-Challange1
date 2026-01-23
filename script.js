@@ -47,6 +47,7 @@ function selectTheElement(el) {
 
     //resize handler
     addResizeHandler(el);
+    loadProperties(el);
 }
 
 function dragStart(e) {
@@ -110,14 +111,6 @@ function resizeMove(e) {
     let elemRect = selectedElement.getBoundingClientRect();
     let canvasRect = canvas.getBoundingClientRect();
 
-    let elementLeft = elemRect.left - canvasRect.left;
-    let elementTop = elemRect.top - canvasRect.top;
-    let elementRight = elementLeft + activeHandle.startWidth;
-    let elementBottom = elementTop + activeHandle.startHeight;
-
-    let newWidth = activeHandle.startWidth;
-    let newLeft = elementLeft;
-
     // Calculate new width/height
     let newWidth = activeHandle.startWidth + dx;
     let newHeight = activeHandle.startHeight + dy;
@@ -155,4 +148,27 @@ function clearSelection() {
 
     removeResizeHandler();
 }
+
+// properties panel
+let propW = document.getElementById("prop-width");
+let propH = document.getElementById("prop-height");
+let propC = document.getElementById("prop-color");
+let propT = document.getElementById("prop-text");
+let propR = document.getElementById("prop-rotate");
+
+function loadProperties(el) {
+    propW.value = parseInt(el.style.width);
+    propH.value = parseInt(el.style.height);
+    propC.value = el.style.backgroundColor || "#000000";
+    propT.value = el.innerText;
+    propR.value = 0;
+}
+
+
+propH.oninput = () => selectedElement.style.height = propH.value + "px";
+propW.oninput = () => selectedElement.style.width = propW.value + "px";
+propC.oninput = () => selectedElement.style.background = propC.value;
+propT.oninput = () => selectedElement.innerText = propT.value;
+propR.oninput = () => selectedElement.style.transform = `rotate(${propR.value}deg)`;
+
 
