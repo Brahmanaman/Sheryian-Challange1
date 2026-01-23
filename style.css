@@ -32,6 +32,7 @@ body {
     background: #f2f2f2;
     border: 2px solid #ccc;
     position: relative;
+    overflow: hidden;
 }
 
 #side-panels {
@@ -52,6 +53,9 @@ body {
     border: 1px solid transparent;
     word-break: break-all;
     overflow: hidden;
+    box-sizing: border-box;
+    min-height: 80px;
+    min-width: 80px;
 }
 
 .element.selected {
@@ -61,7 +65,7 @@ body {
 .resize-handle {
     width: 20px;
     height: 20px;
-    background: white;
+    background: rgb(255, 0, 0);
     border: 1px solid black;
     position: absolute;
 }
@@ -96,4 +100,8 @@ body {
     background: #eee;
     margin: 5px 0;
     cursor: pointer;
+}
+
+.layer-active {
+    background: #6d6d6d !important;
 }

@@ -1,5 +1,6 @@
 let canvas = document.getElementById("canvas");
 let idCounter = 0;
+let latestElementId = 0;
 let elements = [];
 let selectedElement = null;
 
@@ -9,7 +10,7 @@ document.getElementById("add-text").onclick = () => createElement("text");
 function createElement(type) {
     let elem = document.createElement("div");
     elem.classList.add("element");
-    elem.id = ++idCounter;
+    elem.id = latestElementId > 0 ? ++latestElementId : ++idCounter;
     elem.dataset.type = type;
     elem.style.height = "100px";
     elem.style.width = "200px";
@@ -20,6 +21,8 @@ function createElement(type) {
     canvas.appendChild(elem);
     elements.push(elem);
     addEventListeners(elem);
+
+    refreshLayers();
 
 }
 
@@ -192,6 +195,7 @@ document.addEventListener("keydown", function (e) {
         })
         console.log(elements)
         selectedElement = null;
+        refreshLayers();
     }
 
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
@@ -233,7 +237,7 @@ function loadData() {
     data.forEach(element => {
         let el = document.createElement("div");
         el.classList.add("element");
-        el.dataset.id = element.id;
+        el.id = element.id;
         el.dataset.type = element.type;
 
         el.style.left = element.x;
@@ -247,15 +251,58 @@ function loadData() {
         canvas.appendChild(el);
         elements.push(el);
         addEventListeners(el);
+        latestElementId = parseInt(element.id);
     })
+
+    refreshLayers();
 }
 
 loadData();
 
+//layer panel
+function refreshLayers() {
+    let list = document.getElementById("layer-list");
+    list.innerHTML = "";
+
+    elements.forEach(el => {
+        let li = document.createElement("li");
+        li.innerText = "Element " + el.id;
+
+        if (el === selectedElement) {
+            li.classList.add("layer-active");
+        }
+
+        li.onclick = () => {
+            selectTheElement(el);
+            refreshLayers();
+        };
+
+        list.appendChild(li);
+    });
+}
+
+const upBtn = document.getElementById("layer-up");
+const downBtn = document.getElementById("layer-down");
+
+upBtn.addEventListener("click", () => {
+    if (!selectedElement) return;
+
+    const currentZ = parseInt(selectedElement.style.zIndex || 0);
+    selectedElement.style.zIndex = currentZ + 1;
+});
+
+downBtn.addEventListener("click", () => {
+    if (!selectedElement) return;
+
+    const currentZ = parseInt(selectedElement.style.zIndex || 0);
+    selectedElement.style.zIndex = currentZ - 1;
+});
+
+
 // Export json
 document.getElementById("export-json").onclick = () => {
     let data = JSON.stringify(elements.map(el => ({
-        id: el.dataset.id,
+        id: el.id,
         type: el.dataset.type,
         x: el.style.left,
         y: el.style.top,
@@ -289,7 +336,6 @@ document.getElementById("export-html").onclick = () => {
 
     download("design.html", html);
 };
-
 
 // download helper function
 function download(filename, content) {
