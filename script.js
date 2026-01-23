@@ -128,8 +128,6 @@ function resizeStart(e) {
 }
 
 function resizeMove(e) {
-    console.log("selected in resize move ", selected);
-    debugger
     if (!resizing) return;
     let dx = e.clientX - activeHandle.startX;
     let dy = e.clientY - activeHandle.startY;
