@@ -14,7 +14,6 @@ function createElement(type) {
     elem.style.height = "100px";
     elem.style.width = "200px";
     elem.style.backgroundColor = type == "rect" ? "#0b003efe" : "transparent";
-    elem.style.border = type == "text" ? "1px solid black" : "none";
     if (type == "text") {
         elem.textContent = "update the text from text box";
     }
@@ -42,6 +41,15 @@ function startDrag(e) {
 
 function selectTheElement(el) {
     if (selectedElement) clearSelection();
+
+    if (el.dataset.type == "rect") {
+        document.getElementById("prop-text").setAttribute("disabled", "true");
+        document.getElementById("prop-text").removeAttribute("enabled");
+    }
+    else {
+        document.getElementById("prop-text").removeAttribute("disabled");
+        document.getElementById("prop-text").setAttribute("enabled", "true");
+    }
     selectedElement = el;
     el.classList.add("selected");
 
@@ -161,14 +169,132 @@ function loadProperties(el) {
     propH.value = parseInt(el.style.height);
     propC.value = el.style.backgroundColor || "#000000";
     propT.value = el.innerText;
-    propR.value = 0;
+    const str = el.style.transform;
+    const value = Number(str.replace(/[^\d.-]/g, ''));
+    propR.value = value;
 }
 
 
 propH.oninput = () => selectedElement.style.height = propH.value + "px";
 propW.oninput = () => selectedElement.style.width = propW.value + "px";
 propC.oninput = () => selectedElement.style.background = propC.value;
-propT.oninput = () => selectedElement.innerText = propT.value;
+propT.oninput = () => selectedElement.dataset.type == "text" ? selectedElement.innerText = propT.value : "";
 propR.oninput = () => selectedElement.style.transform = `rotate(${propR.value}deg)`;
 
+//delete & arrow key
 
+document.addEventListener("keydown", function (e) {
+    if (!selectedElement) return;
+    if (e.key === "Delete") {
+        selectedElement.remove();
+        elements = elements.filter((element) => {
+            return (element !== selectedElement);
+        })
+        console.log(elements)
+        selectedElement = null;
+    }
+
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        let top = parseInt(selectedElement.style.top);
+        let left = parseInt(selectedElement.style.left);
+
+        if (e.key === "ArrowUp") selectedElement.style.top = top - 5 + "px";
+        if (e.key === "ArrowDown") selectedElement.style.top = top + 5 + "px";
+        if (e.key === "ArrowLeft") selectedElement.style.left = left - 5 + "px";
+        if (e.key === "ArrowRight") selectedElement.style.left = left + 5 + "px";
+    }
+})
+
+document.getElementById("save").addEventListener("click", function () {
+    let data = elements.map(element => ({
+        id: element.id,
+        type: element.dataset.type,
+        x: element.style.left,
+        y: element.style.top,
+        width: element.style.width,
+        height: element.style.height,
+        bg: element.style.backgroundColor,
+        text: element.textContent,
+        rotate: element.style.transform
+    }));
+
+    localStorage.setItem("design", JSON.stringify(data))
+    alert("data saved succesfully");
+})
+
+document.getElementById("load").addEventListener("click", loadData)
+
+function loadData() {
+    let data = JSON.parse(localStorage.getItem("design"));
+    if (!data) return alert("No saved design");
+
+    canvas.innerHTML = "";
+    elements = [];
+    data.forEach(element => {
+        let el = document.createElement("div");
+        el.classList.add("element");
+        el.dataset.id = element.id;
+        el.dataset.type = element.type;
+
+        el.style.left = element.x;
+        el.style.top = element.y;
+        el.style.width = element.width;
+        el.style.height = element.height;
+        el.style.background = element.bg;
+        el.style.transform = element.rotate;
+        el.innerText = element.text;
+
+        canvas.appendChild(el);
+        elements.push(el);
+        addEventListeners(el);
+    })
+}
+
+loadData();
+
+// Export json
+document.getElementById("export-json").onclick = () => {
+    let data = JSON.stringify(elements.map(el => ({
+        id: el.dataset.id,
+        type: el.dataset.type,
+        x: el.style.left,
+        y: el.style.top,
+        width: el.style.width,
+        height: el.style.height,
+        bg: el.style.background,
+        text: el.innerText,
+        rotate: el.style.transform
+    })), null, 2);
+
+    download("design.json", data);
+};
+
+// Export html
+document.getElementById("export-html").onclick = () => {
+    let html = `<div style='position:relative;width:800px;height:500px;'>\n`;
+
+    elements.forEach(el => {
+        html += `<div style="
+            position:absolute;
+            left:${el.style.left};
+            top:${el.style.top};
+            width:${el.style.width};
+            height:${el.style.height};
+            background:${el.style.background};
+            transform:${el.style.transform};
+        ">${el.innerText}</div>\n`;
+    });
+
+    html += "</div>";
+
+    download("design.html", html);
+};
+
+
+// download helper function
+function download(filename, content) {
+    let a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([content]));
+    a.download = filename;
+    a.click();
+}
