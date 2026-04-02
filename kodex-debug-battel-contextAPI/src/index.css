@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@font-face {
+    font-family: hello;
+    src: url(./Gilroy-Regular.ttf);
+}
+
+*{
+    font-family:hello;
+}
